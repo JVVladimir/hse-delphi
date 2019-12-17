@@ -68,13 +68,8 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
                                 });
                         if (observers.size() == n) {
                             log.info("Vote mode");
-                            ServerResponse message2 = ServerResponse.newBuilder()
-                                    .setAction("Vote")
-                                    .build();
-                            observers.forEach(observer -> {
-                                observer.onNext(message2);
-                                log.info("Broadcast to {} - {}", observer, message2);
-                            });
+                            ServerResponse message2 = buildServerResponse(value, "Vote");
+                            broadcast(message2);
                         }
                     } else {
                         responseObserver.onCompleted();
@@ -82,28 +77,13 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
                     // Vote (2)
                 } else if (!value.getMark().equals("-1") && value.getDescription().equals("-1")) {
                     log.info("Mark got");
-                    ServerResponse message = ServerResponse.newBuilder()
-                            .setId(value.getId())
-                            .setMark(value.getMark())
-                            .setAction("Mark")
-                            .build();
-                    observers.forEach(observer -> {
-                        observer.onNext(message);
-                        log.info("Broadcast to {} - {}", observer, message);
-                    });
+                    ServerResponse message = buildServerResponse(value, "Mark");
+                    broadcast(message);
                     // Comment(3)
                 } else if (value.getMark().equals("-1") && !value.getDescription().equals("-1")) {
                     log.info("Comment got");
-                    ServerResponse message = ServerResponse.newBuilder()
-                            .setId(value.getId())
-                            .setMark(value.getMark())
-                            .setComments(value.getDescription())
-                            .setAction("Comment")
-                            .build();
-                    observers.forEach(observer -> {
-                        observer.onNext(message);
-                        log.info("Broadcast to {} - {}", observer, message);
-                    });
+                    ServerResponse message = buildServerResponse(value, "Comment");
+                    broadcast(message);
                 }
             }
 
@@ -127,6 +107,22 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
         };
     }
 
+    private void broadcast(ServerResponse message) {
+        observers.forEach(observer -> {
+            observer.onNext(message);
+            log.info("Broadcast to {} - {}", observer, message);
+        });
+    }
+
+    private ServerResponse buildServerResponse(ClientRequest value, String action) {
+        return ServerResponse.newBuilder()
+                                .setId(value.getId())
+                                .setMark(value.getMark())
+                                .setComments(value.getDescription())
+                                .setAction(action)
+                                .build();
+    }
+
     @Scheduled(fixedDelay = 5000)
     public void checkConfigEnable() {
         if (!isVote) {
@@ -139,4 +135,3 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
         }
     }
 }
-// 141
