@@ -29,16 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Service
-public class GoogleDocConfigReader implements ConfigReader {
-
-    private static final String APPLICATION_NAME = "Application Runner";
-    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
-    private static final String DOCUMENT_ID = "1QeXCG8rEsT-UFD181NA5ZsdF9_5LPd12txJRA2BfFq8";
-    public static final String USER_ID = "vovabear1@gmail.com";
-
-    private static final List<String> SCOPES = Collections.singletonList(DocsScopes.DOCUMENTS);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+public class GoogleDocConfigReader extends AbstractGoogleDocConfig implements ConfigReader {
 
     @Override
     public Config readConfig() {
@@ -76,37 +67,7 @@ public class GoogleDocConfigReader implements ConfigReader {
         return readStructuralElements(doc.getBody().getContent());
     }
 
-    private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-        // Load client secrets.
-        InputStream in = ApplicationRunner.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
-        if (in == null) {
-            throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
-        }
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
-
-        // Build flow and trigger user authorization request.
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize(USER_ID);
-    }
-
-    private String readStructuralElements(List<StructuralElement> elements) {
-        var sb = new StringBuilder();
-        for (StructuralElement element : elements) {
-            if (element.getParagraph() != null) {
-                for (ParagraphElement paragraphElement : element.getParagraph().getElements()) {
-                    sb.append(readParagraphElement(paragraphElement));
-                }
-            }
-        }
-        return sb.toString();
-    }
-
-    private String readParagraphElement(ParagraphElement element) {
+    protected String readParagraphElement(ParagraphElement element) {
         TextRun run = element.getTextRun();
         if (run == null || run.getContent() == null) {
             return "";
