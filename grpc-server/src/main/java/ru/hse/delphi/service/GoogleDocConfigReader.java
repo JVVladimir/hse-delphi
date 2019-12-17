@@ -43,7 +43,7 @@ public class GoogleDocConfigReader extends AbstractGoogleDocConfig implements Co
         }
     }
 
-    public Config parseString(String stringConfig) {
+    private Config parseString(String stringConfig) {
         var questionPrefix = "Question=";
         var expertsPrefix = "NumberOfExperts=";
         var questionPart = stringConfig.substring(stringConfig.indexOf(questionPrefix));
@@ -56,7 +56,7 @@ public class GoogleDocConfigReader extends AbstractGoogleDocConfig implements Co
         return new Config(question, expertCount);
     }
 
-    public String readGoogleConfigFile() throws IOException, GeneralSecurityException {
+    private String readGoogleConfigFile() throws IOException, GeneralSecurityException {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         Docs service = new Docs.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))

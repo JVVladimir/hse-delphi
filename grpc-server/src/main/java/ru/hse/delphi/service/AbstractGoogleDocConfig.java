@@ -27,7 +27,7 @@ public abstract class AbstractGoogleDocConfig {
     protected static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     protected static final String TOKENS_DIRECTORY_PATH = "tokens";
     protected static final String DOCUMENT_ID = "1QeXCG8rEsT-UFD181NA5ZsdF9_5LPd12txJRA2BfFq8";
-    public static final String USER_ID = "vovabear1@gmail.com";
+    protected static final String USER_ID = "vovabear1@gmail.com";
 
     protected static final List<String> SCOPES = Collections.singletonList(DocsScopes.DOCUMENTS);
     protected static final String CREDENTIALS_FILE_PATH = "/credentials.json";
