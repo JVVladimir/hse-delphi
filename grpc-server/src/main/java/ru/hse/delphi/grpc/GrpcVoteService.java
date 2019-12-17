@@ -15,7 +15,6 @@ import ru.hse.protobuf.HandlerServiceGrpc;
 import ru.hse.protobuf.ServerResponse;
 
 import javax.annotation.PostConstruct;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,8 +26,9 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
 
     private static Set<StreamObserver<ServerResponse>> observers = ConcurrentHashMap.newKeySet();
 
-    private static int n;
-    private static String question;
+    private volatile static int n;
+    private volatile static String question;
+    private volatile static boolean isVote;
 
     @Autowired
     private ConfigReader configReader;
@@ -48,8 +48,11 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
             @Override
             public void onNext(ClientRequest value) {
                 log.info("Client request: {}", value);
+                if (n < 4 || question == null || question.trim().equals(""))
+                    responseObserver.onCompleted();
                 // Generate (1)
                 if (value.getDescription().equals("-1") && value.getMark().equals("-1")) {
+                    isVote = true;
                     if (observers.size() < n) {
                         observers.add(responseObserver);
                         log.info("Observers size: {}", observers.size());
@@ -106,12 +109,14 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
 
             @Override
             public void onError(Throwable t) {
+                isVote = false;
                 observers.forEach(observer -> observer.onError(t));
                 log.info("Error happened!");
             }
 
             @Override
             public void onCompleted() {
+                isVote = false;
                 log.info("On completed!");
                 observers.stream().filter(e -> e.equals(responseObserver))
                         .forEach(StreamObserver::onCompleted);
@@ -122,13 +127,16 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
         };
     }
 
-    @Scheduled(fixedDelay = 3000)
+    @Scheduled(fixedDelay = 5000)
     public void checkConfigEnable() {
-        Config config = configReader.readConfig();
-        if (config != null && !(config.getNumberOfExperts() == 0 && config.getQuestion() == null)) {
-            n = config.getNumberOfExperts();
-            question = config.getQuestion();
-            log.info("Данные, полученные из ГУГЛ-док: {}, {}", question, n);
+        if (!isVote) {
+            Config config = configReader.readConfig();
+            if (config != null && !(config.getNumberOfExperts() == 0 && config.getQuestion() == null)) {
+                n = config.getNumberOfExperts();
+                question = config.getQuestion();
+                log.info("Данные, полученные из ГУГЛ-док: {}, {}", question, n);
+            }
         }
     }
 }
+// 141
