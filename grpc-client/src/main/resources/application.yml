@@ -1,0 +1,5 @@
+grpc:
+    client:
+        CreateHandleChannel:
+            address: static://192.168.1.69:9091
+            negotiationType: PLAINTEXT

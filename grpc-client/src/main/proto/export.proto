@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package ru.hse.protobuf;
+
+option java_multiple_files = true;
+
+service HandlerService {
+    rpc handleRequest (stream ClientRequest) returns (stream ServerResponse) {
+    }
+}
+
+message ClientRequest {
+    string id = 1;
+    string mark = 2;
+    string description = 3;
+}
+
+message ServerResponse {
+    string id = 1;
+    string mark = 2;
+    string comments = 3;
+    string action = 4;
+}
