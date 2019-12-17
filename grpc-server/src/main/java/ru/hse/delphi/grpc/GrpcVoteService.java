@@ -96,6 +96,7 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
                 log.info("On completed!");
                 observers.stream().filter(e -> e.equals(responseObserver))
                         .forEach(StreamObserver::onCompleted);
+                // Тут подумать, как их лучше отключать!!!
                 // observers.forEach(StreamObserver::onCompleted);
                 observers.remove(responseObserver);
             }

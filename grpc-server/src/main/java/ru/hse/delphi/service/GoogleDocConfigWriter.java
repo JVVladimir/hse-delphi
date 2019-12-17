@@ -1,4 +1,4 @@
-package ru.hse.delphi;
+package ru.hse.delphi.service;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -13,7 +13,8 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.docs.v1.DocsScopes;
 import com.google.api.services.docs.v1.model.*;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.stereotype.Service;
+import ru.hse.delphi.ApplicationRunner;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -21,41 +22,54 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@SpringBootApplication
-public class ApplicationRunner {
+@Service
+public class GoogleDocConfigWriter implements ConfigWriter {
 
-    private static final String APPLICATION_NAME = "Vladimir Application Runner";
+    private static final String APPLICATION_NAME = "Application Runner";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final String DOCUMENT_ID = "1QeXCG8rEsT-UFD181NA5ZsdF9_5LPd12txJRA2BfFq8";
     public static final String USER_ID = "vovabear1@gmail.com";
 
-
-    private static Docs service;
-
-    /**
-     * Global instance of the scopes required by this quickstart.
-     * If modifying these scopes, delete your previously saved tokens/ folder.
-     */
     private static final List<String> SCOPES = Collections.singletonList(DocsScopes.DOCUMENTS);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
-    private static Integer endIndex;
-    private static Integer startIndex;
-    private static boolean needDeleteRaw;
+    private static final String CREDENTIALS_FILE_PATH = "credentials.json";
+    private Integer endIndex;
+    private Integer startIndex;
+    private boolean needDeleteRaw;
 
-    /**
-     * Creates an authorized Credential object.
-     *
-     * @param HTTP_TRANSPORT The network HTTP Transport.
-     * @return An authorized Credential object.
-     * @throws IOException If the credentials.json file cannot be found.
-     */
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
+    @Override
+    public void writeConfig(String text) {
+        try {
+            final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+            Docs service = new Docs.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+
+            Document doc = service.documents().get(DOCUMENT_ID).execute();
+            readStructuralElements(doc.getBody().getContent());
+
+            String ip = getRealIPAddress();
+
+            List<Request> requests = new ArrayList<>();
+            if (!needDeleteRaw) {
+                requests.add(getRequestForTextInsertion(ip, endIndex - 1));
+            } else {
+                requests.add(getRequestForContentDeletion(startIndex + 9, endIndex - 1));
+                requests.add(getRequestForTextInsertion(ip, startIndex + 9));
+            }
+
+            BatchUpdateDocumentRequest body = new BatchUpdateDocumentRequest().setRequests(requests);
+            service.documents().batchUpdate(DOCUMENT_ID, body).execute();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
         // Load client secrets.
         InputStream in = ApplicationRunner.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
@@ -73,42 +87,14 @@ public class ApplicationRunner {
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize(USER_ID);
     }
 
-
-    public static void main(String[] args) throws IOException, GeneralSecurityException {
-        //   SpringApplication.run(ApplicationRunner.class, args);
-
-        // Build a new authorized API client service.
-        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        service = new Docs.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-
-        Document doc = service.documents().get(DOCUMENT_ID).execute();
-        String initialSettings = readStructuralElements(doc.getBody().getContent()); // результат считывания гугл-док файла
-
-        String ip = getRealIPAddress();
-
-        List<Request> requests = new ArrayList<>();
-        if (!needDeleteRaw) {
-            requests.add(getRequestForTextInsertion(ip, endIndex - 1));
-        } else {
-            requests.add(getRequestForContentDeletion(startIndex + 9, endIndex - 1));
-            requests.add(getRequestForTextInsertion(ip, startIndex + 9));
-        }
-
-        BatchUpdateDocumentRequest body = new BatchUpdateDocumentRequest().setRequests(requests);
-        BatchUpdateDocumentResponse response = service.documents()
-                .batchUpdate(DOCUMENT_ID, body).execute();
-    }
-
-    private static Request getRequestForContentDeletion(int startIndex, int endIndex) {
+    private Request getRequestForContentDeletion(int startIndex, int endIndex) {
         return new Request().setDeleteContentRange(
                 new DeleteContentRangeRequest()
                         .setRange(new Range().setStartIndex(startIndex).setEndIndex(endIndex))
         );
     }
 
-    private static Request getRequestForTextInsertion(String ip, int startIndex) {
+    private Request getRequestForTextInsertion(String ip, int startIndex) {
         return new Request().setInsertText(
                 new InsertTextRequest()
                         .setLocation(new Location().setIndex(startIndex))
@@ -116,7 +102,7 @@ public class ApplicationRunner {
         );
     }
 
-    private static String getRealIPAddress() {
+    private String getRealIPAddress() {
         try {
             String ip;
             try (final DatagramSocket socket = new DatagramSocket()) {
@@ -129,7 +115,7 @@ public class ApplicationRunner {
         }
     }
 
-    private static String readStructuralElements(List<StructuralElement> elements) {
+    private String readStructuralElements(List<StructuralElement> elements) {
         StringBuilder sb = new StringBuilder();
         for (StructuralElement element : elements) {
             if (element.getParagraph() != null) {
@@ -141,7 +127,7 @@ public class ApplicationRunner {
         return sb.toString();
     }
 
-    private static String readParagraphElement(ParagraphElement element) {
+    private String readParagraphElement(ParagraphElement element) {
         TextRun run = element.getTextRun();
         if (run == null || run.getContent() == null) {
             return "";

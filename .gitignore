@@ -4,9 +4,7 @@
 *.out/*
 *.build/*
 
-*.iml
 *.ipr
-*.iws
 out/
 .idea_modules/
 *.class
