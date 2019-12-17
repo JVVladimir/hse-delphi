@@ -4,22 +4,41 @@ import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import ru.hse.delphi.entity.Config;
+import ru.hse.delphi.service.ConfigReader;
+import ru.hse.delphi.service.ConfigWriter;
 import ru.hse.protobuf.ClientRequest;
 import ru.hse.protobuf.HandlerServiceGrpc;
 import ru.hse.protobuf.ServerResponse;
 
+import javax.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @GrpcService
+@EnableScheduling
 public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
 
     private static Logger log = LoggerFactory.getLogger(GrpcVoteService.class);
 
-    static Set<StreamObserver<ServerResponse>> observers = ConcurrentHashMap.newKeySet();
+    private static Set<StreamObserver<ServerResponse>> observers = ConcurrentHashMap.newKeySet();
 
-    private static final int n = 4;
-    private static final String QUESTION = "Действительно ли, Вова гранд пиг?";
+    private static int n;
+    private static String question;
+
+    @Autowired
+    private ConfigReader configReader;
+    @Autowired
+    private ConfigWriter configWriter;
+
+    @PostConstruct
+    public void sendIpToConfig() {
+        configWriter.writeConfig();
+    }
 
     @Override
     public StreamObserver<ClientRequest> handleRequest(StreamObserver<ServerResponse> responseObserver) {
@@ -36,7 +55,7 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
                         log.info("Observers size: {}", observers.size());
                         ServerResponse message = ServerResponse.newBuilder()
                                 .setAction("Wait:" + n)
-                                .setComments(QUESTION)
+                                .setComments(question)
                                 .build();
                         observers.stream()
                                 .filter(e -> e.equals(responseObserver))
@@ -101,5 +120,15 @@ public class GrpcVoteService extends HandlerServiceGrpc.HandlerServiceImplBase {
                 observers.remove(responseObserver);
             }
         };
+    }
+
+    @Scheduled(fixedDelay = 3000)
+    public void checkConfigEnable() {
+        Config config = configReader.readConfig();
+        if (config != null && !(config.getNumberOfExperts() == 0 && config.getQuestion() == null)) {
+            n = config.getNumberOfExperts();
+            question = config.getQuestion();
+            log.info("Данные, полученные из ГУГЛ-док: {}, {}", question, n);
+        }
     }
 }

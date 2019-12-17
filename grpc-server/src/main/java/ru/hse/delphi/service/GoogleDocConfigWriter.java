@@ -36,13 +36,13 @@ public class GoogleDocConfigWriter implements ConfigWriter {
     public static final String USER_ID = "vovabear1@gmail.com";
 
     private static final List<String> SCOPES = Collections.singletonList(DocsScopes.DOCUMENTS);
-    private static final String CREDENTIALS_FILE_PATH = "credentials.json";
+    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
     private Integer endIndex;
     private Integer startIndex;
     private boolean needDeleteRaw;
 
     @Override
-    public void writeConfig(String text) {
+    public void writeConfig() {
         try {
             final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
             Docs service = new Docs.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))

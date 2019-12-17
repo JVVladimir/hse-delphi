@@ -47,6 +47,8 @@ public class GoogleDocConfigReader implements ConfigReader {
             return parseString(stringConfig);
         } catch (IOException | GeneralSecurityException e) {
             throw new RuntimeException(e);
+        } catch (IndexOutOfBoundsException | NumberFormatException ex) {
+            return null;
         }
     }
 
